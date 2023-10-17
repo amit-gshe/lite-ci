@@ -1,0 +1,11 @@
+[Unit]
+Description=Triggered by webhook to build service
+
+[Service]
+StandardOutput=journal
+ExecStart=python3 /path/to/webhook.py
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=default.target

@@ -1,0 +1,42 @@
+#!/bin/env bash
+set -e
+ref=$1
+project=$2
+git=git-retry
+gcr=asia.gcr.io/some-project
+
+if [[ "$1" == refs/* ]]; then
+    ref=`echo $ref|cut -f3 -d'/'`
+fi
+
+if [[ "$ref" == "" ]]; then
+    ref=`git rev-parse --abbrev-ref HEAD`
+fi
+
+$git fetch --all
+$git checkout -q -f $ref
+branch=`git branch --show-current`
+if [[ "$branch" != "" ]]; then
+    echo current branch: $branch
+    $git merge origin/$branch
+fi
+if [[ "$project" == "" ]]; then
+    project=${PWD##*/}
+fi
+label="$ref"
+if [[ "$label" = "master" ]]; then
+    label="latest"
+fi
+docker_tag=$gcr/$project:$label
+if [ -f before-build.sh ]; then
+    sh before-build.sh
+fi
+echo tag: $docker_tag
+docker build . -t $docker_tag --cache-from $docker_tag
+docker push $docker_tag
+
+image_tag=`kubectl get deployment $project -o=jsonpath='{$.spec.template.spec.containers[:1].image}' --namespace default | cut -f2 -d':' -s`
+if [[ "$image_tag" == "$label" || "$image_tag" == "" && "$label" == "latest" ]]; then
+    echo restart deployment $project
+    kubectl rollout restart deployment $project --namespace default
+fi

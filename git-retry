@@ -1,0 +1,16 @@
+#!/bin/bash
+
+REALGIT=/usr/bin/git
+
+RETRIES=3
+DELAY=5
+COUNT=1
+while [ $COUNT -lt $RETRIES ]; do
+  $REALGIT $*
+  if [ $? -eq 0 ]; then
+    RETRIES=0
+    break
+  fi
+  let COUNT=$COUNT+1
+  #sleep $DELAY
+done
